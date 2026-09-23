@@ -1,0 +1,4 @@
+/* Global reset - keeps body styles in App.css */
+#root {
+  width: 100%;
+}

@@ -1,0 +1,69 @@
+services:
+  # ============================================
+  # SERVICE 1: PostgreSQL Database
+  # ============================================
+  postgres:
+    image: postgres:17-alpine
+    container_name: miniapp-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: todo_db
+      POSTGRES_USER: todo_user
+      POSTGRES_PASSWORD: "123456"
+    volumes:
+      # Bind Mount: Lưu dữ liệu trực tiếp vào thư mục postgres-data trên máy thật
+      - ./postgres-data:/var/lib/postgresql/data
+      # Tự động nạp dữ liệu ban đầu nếu thư mục postgres-data mới được khởi tạo
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - miniapp-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U todo_user -d todo_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ============================================
+  # SERVICE 2: Spring Boot Backend
+  # ============================================
+  backend:
+    build:
+      context: ./backend
+    container_name: miniapp-backend
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/todo_db
+      DB_USERNAME: todo_user
+      DB_PASSWORD: "123456"
+    networks:
+      - miniapp-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ============================================
+  # SERVICE 3: React Frontend (Nginx)
+  # ============================================
+  frontend:
+    build:
+      context: ./frontend
+    container_name: miniapp-frontend
+    ports:
+      - "3000:80"
+    networks:
+      - miniapp-network
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+# ============================================
+# NETWORKS
+# ============================================
+networks:
+  miniapp-network:
+    name: miniapp-network
+    external: true
