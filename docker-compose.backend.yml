@@ -1,0 +1,21 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: miniapp-backend
+    ports:
+      - "8080:8080"
+    environment:
+      # Kết nối tới postgres thông qua hostname alias "postgres" trên mạng miniapp-network
+      DB_URL: jdbc:postgresql://postgres:5432/todo_db
+      DB_USERNAME: todo_user
+      DB_PASSWORD: "123456"
+    networks:
+      miniapp-network:
+        aliases:
+          - miniapp-backend  # Giúp frontend Nginx gọi "miniapp-backend" sẽ trỏ vào đây
+    restart: unless-stopped
+
+networks:
+  miniapp-network:
+    external: true
