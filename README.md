@@ -315,3 +315,5 @@ docker compose ps
 
 ### 5. Dữ liệu không lưu khi khởi động lại
 *   **Kiểm tra**: Đảm bảo `docker-compose.yml` đã mount volume `miniapp-postgres-data:/var/lib/postgresql/data` cho service `postgres`.
+#   d o c k e r _ T  
+ 

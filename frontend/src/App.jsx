@@ -2,23 +2,42 @@ import { useState, useEffect } from "react";
 import { getTodos, createTodo, updateTodo, deleteTodo } from "./services/todoApi";
 import TodoForm from "./components/TodoForm";
 import TodoList from "./components/TodoList";
+import Login from "./components/Login";
+import ChatBox from "./components/ChatBox";
 import "./App.css";
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [todos, setTodos] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [notification, setNotification] = useState(null);
+  const [activeTab, setActiveTab] = useState("both"); // "both", "todos", "chat"
+
+  // Kiểm tra xem đã đăng nhập chưa (có token trong localStorage không)
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      setIsAuthenticated(true);
+      loadTodos();
+    }
+  }, []);
+
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true);
+    loadTodos();
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    setIsAuthenticated(false);
+    setTodos([]);
+  };
 
   const showNotification = (message, type = "error") => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
   };
-
-  // Load todos khi mở trang
-  useEffect(() => {
-    loadTodos();
-  }, []);
 
   const loadTodos = async () => {
     setLoading(true);
@@ -27,25 +46,23 @@ function App() {
       const data = await getTodos();
       setTodos(data);
     } catch (err) {
-      setError("Không thể tải dữ liệu. Vui lòng thử lại.");
+      setError("Không thể tải danh sách công việc. Vui lòng thử lại.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Thêm todo mới
   const handleAdd = async (title) => {
     try {
       const newTodo = await createTodo(title);
       setTodos((prev) => [...prev, newTodo]);
-      showNotification("Đã thêm công việc!", "success");
+      showNotification("Đã thêm công việc thành công!", "success");
     } catch (err) {
       showNotification("Không thể thêm công việc.");
       throw err;
     }
   };
 
-  // Đánh dấu hoàn thành / chưa hoàn thành
   const handleToggle = async (id, completed) => {
     const todo = todos.find((t) => t.id === id);
     if (!todo) return;
@@ -58,26 +75,24 @@ function App() {
     }
   };
 
-  // Sửa tiêu đề todo
   const handleUpdate = async (id, title) => {
     const todo = todos.find((t) => t.id === id);
     if (!todo) return;
     try {
       const updated = await updateTodo(id, { title, completed: todo.completed });
       setTodos((prev) => prev.map((t) => (t.id === id ? updated : t)));
-      showNotification("Đã cập nhật!", "success");
+      showNotification("Đã cập nhật công việc!", "success");
     } catch (err) {
       showNotification("Không thể sửa công việc.");
       throw err;
     }
   };
 
-  // Xóa todo
   const handleDelete = async (id) => {
     try {
       await deleteTodo(id);
       setTodos((prev) => prev.filter((t) => t.id !== id));
-      showNotification("Đã xóa!", "success");
+      showNotification("Đã xóa công việc!", "success");
     } catch (err) {
       showNotification("Không thể xóa công việc.");
       throw err;
@@ -86,55 +101,134 @@ function App() {
 
   const completedCount = todos.filter((t) => t.completed).length;
 
+  // Nếu chưa đăng nhập, hiển thị Giao diện Login
+  if (!isAuthenticated) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
     <div className="app">
-      <div className="container">
-        <header className="app-header">
-          <div className="header-icon">📝</div>
-          <h1>Todo App</h1>
-          <p className="header-subtitle">Quản lý công việc của bạn</p>
-        </header>
+      {/* Top Navigation Bar */}
+      <nav className="top-navbar">
+        <div className="navbar-brand">
+          <span className="navbar-logo">⚡</span>
+          <span className="navbar-title">TodoAI Studio</span>
+          <span className="navbar-pill">v2.0 Fullstack</span>
+        </div>
 
-        <TodoForm onAdd={handleAdd} />
+        {/* View mode buttons for mobile/tablet */}
+        <div className="view-mode-tabs">
+          <button
+            className={`tab-btn ${activeTab === "both" ? "active" : ""}`}
+            onClick={() => setActiveTab("both")}
+            type="button"
+          >
+            🔲 Cả hai
+          </button>
+          <button
+            className={`tab-btn ${activeTab === "todos" ? "active" : ""}`}
+            onClick={() => setActiveTab("todos")}
+            type="button"
+          >
+            📝 Todo ({todos.length})
+          </button>
+          <button
+            className={`tab-btn ${activeTab === "chat" ? "active" : ""}`}
+            onClick={() => setActiveTab("chat")}
+            type="button"
+          >
+            🤖 AI Chat
+          </button>
+        </div>
 
-        {todos.length > 0 && (
-          <div className="todo-stats">
-            <span>{todos.length} công việc</span>
-            <span className="stats-divider">•</span>
-            <span className="stats-completed">{completedCount} hoàn thành</span>
+        <div className="navbar-user">
+          <div className="user-badge">
+            <span className="user-avatar-circle">A</span>
+            <span className="user-name">admin</span>
           </div>
-        )}
+          <button onClick={handleLogout} className="logout-btn" title="Đăng xuất">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            <span>Thoát</span>
+          </button>
+        </div>
+      </nav>
 
-        {loading && <div className="todo-loading">⏳ Đang tải...</div>}
+      {/* Main Dashboard Grid */}
+      <main className="dashboard-container">
+        <div className={`dashboard-grid tab-${activeTab}`}>
+          {/* Left Column: Todo Management */}
+          {(activeTab === "both" || activeTab === "todos") && (
+            <section className="dashboard-panel todo-panel">
+              <div className="panel-header">
+                <div>
+                  <h2>Danh sách công việc</h2>
+                  <p className="panel-subtitle">Quản lý và theo dõi các mục tiêu hàng ngày</p>
+                </div>
+                {todos.length > 0 && (
+                  <div className="panel-stats-chip">
+                    <span className="stats-accent">{completedCount}</span>/{todos.length} xong
+                  </div>
+                )}
+              </div>
 
-        {error && (
-          <div className="todo-error">
-            <p>{error}</p>
-            <button className="todo-btn btn-retry" onClick={loadTodos}>
-              Thử lại
-            </button>
-          </div>
-        )}
+              <TodoForm onAdd={handleAdd} />
 
-        {!loading && !error && (
-          <TodoList
-            todos={todos}
-            onToggle={handleToggle}
-            onUpdate={handleUpdate}
-            onDelete={handleDelete}
-          />
-        )}
+              {todos.length > 0 && (
+                <div className="todo-stats">
+                  <span>{todos.length} công việc</span>
+                  <span className="stats-divider">•</span>
+                  <span className="stats-completed">{completedCount} hoàn thành</span>
+                </div>
+              )}
 
-        {notification && (
-          <div className={`notification ${notification.type}`}>
-            {notification.message}
-          </div>
-        )}
+              {loading && <div className="todo-loading">⏳ Đang tải dữ liệu...</div>}
 
-        <footer className="app-footer">
-          <p>Docker Mini App — React + Spring Boot + PostgreSQL</p>
-        </footer>
-      </div>
+              {error && (
+                <div className="todo-error">
+                  <p>{error}</p>
+                  <button className="todo-btn btn-retry" onClick={loadTodos}>
+                    Thử lại
+                  </button>
+                </div>
+              )}
+
+              {!loading && !error && (
+                <div className="todo-list-scroll">
+                  <TodoList
+                    todos={todos}
+                    onToggle={handleToggle}
+                    onUpdate={handleUpdate}
+                    onDelete={handleDelete}
+                  />
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* Right Column: AI Assistant Chat */}
+          {(activeTab === "both" || activeTab === "chat") && (
+            <section className="dashboard-panel chat-panel">
+              <ChatBox onAddTodoFromAi={handleAdd} />
+            </section>
+          )}
+        </div>
+      </main>
+
+      {/* Notification Toast */}
+      {notification && (
+        <div className={`notification ${notification.type}`}>
+          {notification.message}
+        </div>
+      )}
+
+      {/* Footer */}
+      <footer className="app-footer">
+        <p>Docker Mini App — React + Spring Boot 3 + Google Gemini AI + PostgreSQL</p>
+      </footer>
     </div>
   );
 }
