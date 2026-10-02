@@ -1,7 +1,7 @@
 services:
   frontend:
     build:
-      context: ./frontend
+      context: ./apps/web
     container_name: miniapp-frontend
     ports:
       - "3000:80"
